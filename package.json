@@ -1,11 +1,13 @@
 {
-  "name": "tapalka-server",
+  "name": "tapalka",
   "version": "1.0.0",
   "private": true,
-  "main": "index.js",
+  "main": "server/index.js",
   "scripts": {
-    "start": "node index.js",
-    "dev": "DEV_MODE=1 node index.js"
+    "start": "node server/index.js"
+  },
+  "engines": {
+    "node": ">=20"
   },
   "dependencies": {
     "better-sqlite3": "^11.3.0",

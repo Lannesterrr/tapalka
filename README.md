@@ -74,7 +74,7 @@ docker compose up -d --build     # обновить вручную
 
 ```bash
 cp .env.example .env     # поставь DEV_MODE=1, ADMIN_PASSWORD=любой
-cd server && npm install && npm start
+npm install && npm start
 ```
 
 - Игра: `http://localhost:3000/?dev=1`. Число — ID тестового игрока, `&ref=ref_1` проверяет рефералку.

@@ -1,8 +1,8 @@
 FROM node:22-slim
 WORKDIR /app
 ENV NODE_ENV=production DATA_DIR=/data
-COPY server/package*.json server/
-RUN cd server && npm install --omit=dev --no-audit --no-fund
+COPY package*.json ./
+RUN npm install --omit=dev --no-audit --no-fund
 COPY . .
 VOLUME /data
 EXPOSE 3000
