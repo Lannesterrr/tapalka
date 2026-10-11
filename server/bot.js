@@ -7,7 +7,9 @@ let bot = null;
 const G = () => require('./game'); // ленивый импорт, чтобы не было циклической зависимости
 
 const fmt = n => Math.floor(n).toLocaleString('ru-RU');
-const playKeyboard = (text = '🎮 Играть') => new InlineKeyboard().webApp(text, ENV.WEBAPP_URL);
+const playKeyboard = (text = '🎮 Играть') => /^https:\/\/[^/]+/.test(ENV.WEBAPP_URL)
+  ? new InlineKeyboard().webApp(text, ENV.WEBAPP_URL)
+  : undefined; // без HTTPS-адреса Telegram не примет кнопку Mini App
 
 // ── Очередь отправки: Telegram разрешает ~30 сообщений в секунду ──
 const queue = [];
@@ -88,6 +90,7 @@ function setup() {
     await ctx.reply(
       `<b>${ENV.APP_TITLE}</b>\n\nТапай монету, строй империю и обгоняй друзей в рейтинге.\nМонеты — игровая валюта, их нельзя вывести.`,
       { parse_mode: 'HTML', reply_markup: playKeyboard('🎮 Открыть игру') });
+    if (!playKeyboard()) await ctx.reply('Игра ещё настраивается — загляни чуть позже.');
   });
 
   // Обязательные по правилам Telegram команды для приёма оплаты
@@ -149,9 +152,10 @@ async function start() {
     { command: 'paysupport', description: 'Помощь с покупками' },
     { command: 'terms', description: 'Условия' },
   ]).catch(() => {});
-  if (ENV.WEBAPP_URL) {
+  if (playKeyboard()) {
     await bot.api.setChatMenuButton({ menu_button: { type: 'web_app', text: 'Играть', web_app: { url: ENV.WEBAPP_URL } } }).catch(() => {});
   }
+  if (!/^https:\/\/[^/]+/.test(ENV.WEBAPP_URL)) console.warn('⚠️ WEBAPP_URL не задан или не начинается с https:// — кнопка игры не появится');
   bot.start({ allowed_updates: ['message', 'pre_checkout_query'] });
   console.log('Бот запущен: @' + bot.botInfo.username);
 }
