@@ -1,0 +1,32 @@
+# Автодеплой: каждый push в main обновляет игру на сервере.
+# Нужны секреты репозитория (Settings → Secrets and variables → Actions):
+#   SSH_HOST — IP сервера, SSH_USER — пользователь, SSH_KEY — приватный SSH-ключ
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check secrets
+        id: check
+        env:
+          HOST: ${{ secrets.SSH_HOST }}
+        run: echo "ready=$([ -n "$HOST" ] && echo yes || echo no)" >> "$GITHUB_OUTPUT"
+
+      - name: Update server
+        if: steps.check.outputs.ready == 'yes'
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            cd ~/tapalka
+            git pull --ff-only
+            docker compose up -d --build
+            docker image prune -f
