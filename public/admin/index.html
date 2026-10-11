@@ -1,0 +1,503 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Админка</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=Unbounded:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#0b1026;--deep:#121a3a;--raise:#18214a;--line:#25305e;
+  --text:#eef0fb;--soft:#aab3d6;--mute:#6f7aa6;
+  --gold:#f2c14e;--mint:#3ee6b0;--ember:#ff8a5c;--danger:#ff5d73;
+  --r-lg:18px;--r-md:12px;--r-sm:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--ink);color:var(--text);font:15px/1.5 Onest,system-ui,sans-serif}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+a{color:var(--gold)}
+
+/* вход */
+#login{min-height:100vh;display:grid;place-items:center;padding:16px;
+  background:radial-gradient(60% 50% at 50% 0%,#1d2a66 0%,transparent 70%)}
+#login form{width:100%;max-width:360px;background:var(--deep);border:1px solid var(--line);border-radius:var(--r-lg);padding:28px}
+#login h1{font:700 22px/1.2 Unbounded,sans-serif;margin-bottom:6px}
+#login p{color:var(--soft);margin-bottom:20px;font-size:14px}
+
+/* каркас */
+#shell{display:none;min-height:100vh}
+#shell.on{display:grid;grid-template-columns:232px 1fr}
+aside{background:var(--deep);border-right:1px solid var(--line);padding:22px 14px;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:4px}
+.brand{font:700 17px/1.2 Unbounded,sans-serif;padding:0 10px 18px;display:flex;align-items:center;gap:10px}
+.brand i{width:28px;height:28px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff3c4,var(--gold) 45%,#b07a12);flex:none}
+aside button.nav{all:unset;cursor:pointer;display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:var(--r-md);color:var(--soft);font-weight:500}
+aside button.nav:hover{background:var(--raise);color:var(--text)}
+aside button.nav[aria-current=page]{background:var(--raise);color:var(--text);box-shadow:inset 3px 0 0 var(--gold)}
+aside .spacer{flex:1}
+aside .status{font-size:13px;color:var(--mute);padding:10px 12px;line-height:1.6}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:1px}
+main{padding:28px 32px 60px;max-width:1200px;width:100%}
+h1.page{font:700 26px/1.2 Unbounded,sans-serif;margin-bottom:22px}
+h2{font:600 17px/1.3 Onest,sans-serif;margin-bottom:14px}
+section.view{display:none}section.view.on{display:block}
+
+/* KPI */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden;margin-bottom:24px}
+.kpi{background:var(--deep);padding:18px 20px}
+.kpi .v{font:700 26px/1.1 Unbounded,sans-serif;margin-bottom:6px;font-variant-numeric:tabular-nums}
+.kpi .l{color:var(--soft);font-size:13px}
+.kpi .s{color:var(--mute);font-size:12px;margin-top:2px}
+
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px}
+.grid2.split{grid-template-columns:minmax(0,1fr) minmax(300px,380px)}
+.panel{background:var(--deep);border:1px solid var(--line);border-radius:var(--r-lg);padding:20px}
+.chart{position:relative;height:220px}
+.chart svg{width:100%;height:100%;display:block;overflow:visible}
+.chart .tip{position:absolute;pointer-events:none;background:var(--raise);border:1px solid var(--line);border-radius:var(--r-sm);padding:6px 10px;font-size:13px;white-space:nowrap;transform:translate(-50%,-110%);opacity:0;transition:opacity .1s}
+.chart .tip b{display:block;font-size:15px}
+
+/* таблицы */
+.tbl{width:100%;border-collapse:collapse;font-size:14px}
+.tbl th{color:var(--mute);font-weight:500;text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+.tbl td{padding:11px 12px;border-bottom:1px solid var(--line);vertical-align:middle}
+.tbl tr:last-child td{border-bottom:0}
+.tbl td.num,.tbl th.num{text-align:right;font-variant-numeric:tabular-nums}
+.tbl tbody tr.click{cursor:pointer}
+.tbl tbody tr.click:hover td{background:var(--raise)}
+.tblwrap{background:var(--deep);border:1px solid var(--line);border-radius:var(--r-lg);overflow-x:auto}
+.who b{display:block;font-weight:600}.who small{color:var(--mute)}
+.tag{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:600;background:var(--raise);color:var(--soft)}
+.tag.ok{background:rgba(62,230,176,.14);color:var(--mint)}
+.tag.bad{background:rgba(255,93,115,.14);color:var(--danger)}
+.tag.warn{background:rgba(242,193,78,.14);color:var(--gold)}
+
+/* формы */
+label.f{display:block;margin-bottom:14px}
+label.f span{display:block;font-size:13px;color:var(--soft);margin-bottom:6px}
+label.f small{display:block;font-size:12px;color:var(--mute);margin-top:5px}
+input.in,select.in,textarea.in{width:100%;background:var(--ink);border:1px solid var(--line);border-radius:var(--r-md);padding:10px 12px;outline:0}
+input.in:focus,select.in:focus,textarea.in:focus{border-color:var(--gold)}
+textarea.in{min-height:120px;resize:vertical}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.row > label.f{flex:1;min-width:140px}
+.btn{border:0;border-radius:var(--r-md);padding:10px 16px;font-weight:600;cursor:pointer;background:var(--raise);color:var(--text)}
+.btn:hover{filter:brightness(1.15)}
+.btn.gold{background:var(--gold);color:#241a02}
+.btn.danger{background:rgba(255,93,115,.16);color:var(--danger)}
+.btn.small{padding:6px 11px;font-size:13px}
+.btn:disabled{opacity:.5;cursor:default}
+.toolbar{display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+.toolbar .in{max-width:340px}
+.empty{color:var(--mute);padding:28px;text-align:center}
+.bar{height:6px;background:var(--ink);border-radius:3px;overflow:hidden;margin-top:6px;min-width:120px}
+.bar i{display:block;height:100%;background:var(--mint)}
+.preview{background:#1f2a3a;border-radius:14px 14px 14px 4px;padding:10px 14px;max-width:340px;font-size:14px;white-space:pre-wrap;word-break:break-word}
+.preview .pbtn{display:block;margin-top:8px;text-align:center;background:rgba(255,255,255,.08);border-radius:8px;padding:7px;font-weight:600;font-size:13px}
+
+/* шторка игрока */
+#drawer{position:fixed;inset:0;display:none;z-index:20}
+#drawer.on{display:block}
+#drawer .shade{position:absolute;inset:0;background:rgba(5,8,20,.6)}
+#drawer .sheet{position:absolute;right:0;top:0;bottom:0;width:min(440px,100%);background:var(--deep);border-left:1px solid var(--line);padding:24px;overflow-y:auto}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:8px 16px;font-size:14px;margin:16px 0 20px}
+.kv dt{color:var(--mute)}.kv dd{text-align:right;font-variant-numeric:tabular-nums}
+
+#toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,20px);background:var(--raise);border:1px solid var(--line);padding:11px 18px;border-radius:var(--r-md);opacity:0;transition:.2s;z-index:30;pointer-events:none}
+#toast.on{opacity:1;transform:translate(-50%,0)}
+#toast.err{border-color:var(--danger)}
+
+@media (max-width:860px){
+  #shell.on{grid-template-columns:1fr}
+  aside{position:sticky;height:auto;flex-direction:row;overflow-x:auto;padding:10px;z-index:5;border-right:0;border-bottom:1px solid var(--line)}
+  .brand,aside .spacer,aside .status{display:none}
+  aside button.nav{white-space:nowrap}
+  aside button.nav[aria-current=page]{box-shadow:inset 0 -2px 0 var(--gold)}
+  main{padding:20px 16px 60px}
+  .grid2,.grid2.split{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<div id="login">
+  <form id="loginForm">
+    <h1>Админ-панель</h1>
+    <p>Войди с паролем из настройки ADMIN_PASSWORD.</p>
+    <label class="f"><span>Пароль</span><input class="in" type="password" id="pwd" autocomplete="current-password" required></label>
+    <button class="btn gold" style="width:100%">Войти</button>
+  </form>
+</div>
+
+<div id="shell">
+  <aside>
+    <div class="brand"><i></i><span id="appTitle">Админка</span></div>
+    <button class="nav" data-v="overview" aria-current="page">📊 Обзор</button>
+    <button class="nav" data-v="users">👤 Игроки</button>
+    <button class="nav" data-v="tasks">✅ Задания</button>
+    <button class="nav" data-v="payments">⭐ Платежи</button>
+    <button class="nav" data-v="broadcast">📨 Рассылки</button>
+    <div class="spacer"></div>
+    <div class="status" id="botStatus"></div>
+    <button class="nav" id="logout">↩ Выйти</button>
+  </aside>
+
+  <main>
+    <section class="view on" id="v-overview">
+      <h1 class="page">Обзор</h1>
+      <div class="kpis" id="kpis"></div>
+      <div class="grid2">
+        <div class="panel"><h2>Новые игроки за 14 дней</h2><div class="chart" id="chUsers"></div></div>
+        <div class="panel"><h2>Звёзды за 14 дней</h2><div class="chart" id="chStars"></div></div>
+      </div>
+      <h2>Что покупают</h2>
+      <div class="tblwrap"><table class="tbl" id="prodTbl"></table></div>
+    </section>
+
+    <section class="view" id="v-users">
+      <h1 class="page">Игроки</h1>
+      <div class="toolbar">
+        <input class="in" id="userSearch" placeholder="ID, @ник или имя">
+        <button class="btn" id="userSearchBtn">Найти</button>
+      </div>
+      <div class="tblwrap"><table class="tbl" id="usersTbl"></table></div>
+      <div class="toolbar" style="margin-top:14px"><button class="btn small" id="usersMore">Показать ещё</button></div>
+    </section>
+
+    <section class="view" id="v-tasks">
+      <h1 class="page">Задания</h1>
+      <div class="grid2 split" style="align-items:start">
+        <div class="tblwrap"><table class="tbl" id="tasksTbl"></table></div>
+        <form class="panel" id="taskForm">
+          <h2 id="taskFormTitle">Новое задание</h2>
+          <input type="hidden" name="id">
+          <div class="row">
+            <label class="f" style="flex:0 0 72px;min-width:0"><span>Иконка</span><input class="in" name="icon" value="⭐" maxlength="4"></label>
+            <label class="f"><span>Название</span><input class="in" name="title" required placeholder="Подпишись на канал партнёра"></label>
+          </div>
+          <div class="row">
+            <label class="f"><span>Тип</span>
+              <select class="in" name="type">
+                <option value="channel">Подписка на канал</option>
+                <option value="link">Переход по ссылке</option>
+                <option value="refs">Пригласить друзей</option>
+              </select></label>
+            <label class="f"><span>Награда, монет</span><input class="in" name="reward" type="number" min="1" required value="5000"></label>
+          </div>
+          <label class="f" data-for="channel link"><span>Ссылка</span><input class="in" name="url" placeholder="https://t.me/channel"></label>
+          <label class="f" data-for="channel"><span>@username канала</span><input class="in" name="chat_id" placeholder="@channel">
+            <small>Бот должен быть админом канала, иначе подписку не проверить.</small></label>
+          <label class="f" data-for="refs"><span>Сколько друзей</span><input class="in" name="need" type="number" min="1" value="5"></label>
+          <div class="row">
+            <label class="f"><span>Порядок</span><input class="in" name="sort" type="number" value="0"></label>
+            <label class="f"><span>Статус</span><select class="in" name="active"><option value="1">Показывать</option><option value="0">Скрыто</option></select></label>
+          </div>
+          <div class="row"><button class="btn gold">Сохранить задание</button><button type="button" class="btn" id="taskReset">Очистить</button></div>
+        </form>
+      </div>
+    </section>
+
+    <section class="view" id="v-payments">
+      <h1 class="page">Платежи</h1>
+      <div class="tblwrap"><table class="tbl" id="payTbl"></table></div>
+      <div class="toolbar" style="margin-top:14px"><button class="btn small" id="payMore">Показать ещё</button></div>
+    </section>
+
+    <section class="view" id="v-broadcast">
+      <h1 class="page">Рассылки</h1>
+      <div class="grid2" style="align-items:start">
+        <form class="panel" id="bcForm">
+          <h2>Новая рассылка</h2>
+          <label class="f"><span>Текст</span><textarea class="in" name="text" required placeholder="Новое событие: двойной доход все выходные!"></textarea>
+            <small>Можно &lt;b&gt;жирный&lt;/b&gt;, &lt;i&gt;курсив&lt;/i&gt; и &lt;a href="…"&gt;ссылки&lt;/a&gt;.</small></label>
+          <div class="row">
+            <label class="f"><span>Текст кнопки</span><input class="in" name="button_text" placeholder="🎮 Играть"></label>
+            <label class="f"><span>Куда ведёт</span><input class="in" name="button_url" placeholder="game или https://…">
+              <small>Напиши game, чтобы кнопка открывала игру.</small></label>
+          </div>
+          <h2 style="margin-top:6px">Как увидят игроки</h2>
+          <div class="preview" id="bcPreview"></div>
+          <div class="row" style="margin-top:18px">
+            <button type="button" class="btn" id="bcTest">Отправить себе</button>
+            <button class="btn gold">Разослать всем</button>
+          </div>
+        </form>
+        <div>
+          <h2>История</h2>
+          <div class="tblwrap"><table class="tbl" id="bcTbl"></table></div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div id="drawer"><div class="shade"></div><div class="sheet" id="drawerBody"></div></div>
+<div id="toast" role="status"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const num = n => Math.floor(Number(n) || 0).toLocaleString('ru-RU');
+const when = t => t ? new Date(t).toLocaleString('ru-RU', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) : '—';
+let token = localStorage.getItem('adm') || '';
+
+function toast(msg, err) {
+  const t = $('#toast'); t.textContent = msg; t.className = 'on' + (err ? ' err' : '');
+  clearTimeout(t._h); t._h = setTimeout(() => t.className = '', 2600);
+}
+
+async function api(path, body) {
+  const r = await fetch('/admin/api' + path, {
+    method: body ? 'POST' : 'GET',
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const j = await r.json().catch(() => ({}));
+  if (r.status === 401 && path !== '/login') { logout(); throw new Error(j.error || 'Нужно войти'); }
+  if (!r.ok) throw new Error(j.error || 'Ошибка ' + r.status);
+  return j;
+}
+
+// ── вход ──
+$('#loginForm').onsubmit = async e => {
+  e.preventDefault();
+  try { token = (await api('/login', { password: $('#pwd').value })).token; localStorage.setItem('adm', token); enter(); }
+  catch (err) { toast(err.message, true); }
+};
+function logout() { token = ''; localStorage.removeItem('adm'); $('#shell').classList.remove('on'); $('#login').style.display = ''; }
+$('#logout').onclick = logout;
+function enter() { $('#login').style.display = 'none'; $('#shell').classList.add('on'); show('overview'); }
+
+// ── навигация ──
+const loaders = { overview: loadOverview, users: () => loadUsers(true), tasks: loadTasks, payments: () => loadPayments(true), broadcast: loadBroadcasts };
+function show(v) {
+  document.querySelectorAll('aside .nav[data-v]').forEach(b => b.dataset.v === v ? b.setAttribute('aria-current', 'page') : b.removeAttribute('aria-current'));
+  document.querySelectorAll('.view').forEach(s => s.classList.toggle('on', s.id === 'v-' + v));
+  loaders[v]().catch(e => toast(e.message, true));
+}
+document.querySelectorAll('aside .nav[data-v]').forEach(b => b.onclick = () => show(b.dataset.v));
+
+// ── график: одна серия, столбики со скруглённым верхом, подсказка при наведении ──
+function barChart(el, data, key, color, unit) {
+  const W = 560, H = 200, padL = 36, padB = 24, padT = 8;
+  const max = Math.max(1, ...data.map(d => d[key]));
+  const nice = Math.max(4, Math.ceil(max / 4) * 4, (() => { const p = Math.pow(10, Math.floor(Math.log10(max))); return Math.ceil(Math.ceil(max / p) * p / 4) * 4; })());
+  const step = (W - padL) / data.length, bw = Math.max(4, step - 2);
+  const y = v => padT + (H - padT - padB) * (1 - v / nice);
+  let g = '';
+  for (let i = 0; i <= 4; i++) {
+    const v = nice * i / 4, yy = y(v);
+    g += `<line x1="${padL}" x2="${W}" y1="${yy}" y2="${yy}" stroke="var(--line)" stroke-width="1"/>
+      <text x="${padL - 8}" y="${yy + 4}" text-anchor="end" fill="var(--mute)" font-size="11">${num(v)}</text>`;
+  }
+  const bars = data.map((d, i) => {
+    const x = padL + i * step + 1, top = y(d[key]), h = H - padB - top, r = Math.min(4, h, bw / 2);
+    const path = h > 0 ? `M${x},${H - padB} V${top + r} Q${x},${top} ${x + r},${top} H${x + bw - r} Q${x + bw},${top} ${x + bw},${top + r} V${H - padB} Z` : '';
+    const label = (i % 2 === (data.length - 1) % 2) ? `<text x="${x + bw / 2}" y="${H - 6}" text-anchor="middle" fill="var(--mute)" font-size="11">${d.day.slice(8)}.${d.day.slice(5, 7)}</text>` : '';
+    return `<g data-i="${i}"><rect x="${padL + i * step}" y="${padT}" width="${step}" height="${H - padT - padB}" fill="transparent"/>
+      ${path ? `<path d="${path}" fill="${color}"/>` : ''}${label}</g>`;
+  }).join('');
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="${esc(el.previousElementSibling.textContent)}">${g}${bars}</svg><div class="tip"></div>`;
+  const tip = el.querySelector('.tip'), svg = el.querySelector('svg');
+  svg.addEventListener('pointermove', e => {
+    const gEl = e.target.closest('g[data-i]'); if (!gEl) return (tip.style.opacity = 0);
+    const d = data[gEl.dataset.i], box = svg.getBoundingClientRect();
+    tip.innerHTML = `${new Date(d.day).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}<b>${num(d[key])} ${unit}</b>`;
+    tip.style.left = ((padL + (+gEl.dataset.i + .5) * step) / W * box.width) + 'px';
+    tip.style.top = (y(d[key]) / H * box.height) + 'px';
+    tip.style.opacity = 1;
+  });
+  svg.addEventListener('pointerleave', () => tip.style.opacity = 0);
+}
+
+// ── обзор ──
+async function loadOverview() {
+  const s = await api('/stats');
+  const u = s.users, p = s.payments;
+  const conv = u.total ? (u.payers / u.total * 100).toFixed(1).replace('.', ',') : '0';
+  $('#kpis').innerHTML = [
+    [num(u.total), 'Всего игроков', `${num(u.referred)} пришли по приглашению`],
+    [num(u.dau), 'Активны за сутки', `${num(u.wau)} за неделю`],
+    [num(u.new_day), 'Новых за сутки', ''],
+    [num(p.total) + ' ⭐', 'Заработано звёзд', `${num(p.day)} ⭐ за сутки`],
+    [conv + '%', 'Платящих игроков', `${num(u.payers)} человек`],
+  ].map(([v, l, s]) => `<div class="kpi"><div class="v">${v}</div><div class="l">${l}</div>${s ? `<div class="s">${s}</div>` : ''}</div>`).join('');
+  barChart($('#chUsers'), s.series, 'users', 'var(--mint)', 'игроков');
+  barChart($('#chStars'), s.series, 'stars', 'var(--gold)', '⭐');
+  $('#prodTbl').innerHTML = s.products.length
+    ? `<thead><tr><th>Товар</th><th class="num">Покупок</th><th class="num">Звёзд</th></tr></thead><tbody>${
+        s.products.map(r => `<tr><td>${esc(r.title)}</td><td class="num">${num(r.n)}</td><td class="num">${num(r.stars)}</td></tr>`).join('')}</tbody>`
+    : '<tbody><tr><td class="empty">Покупок пока нет. Они появятся здесь, как только игроки начнут платить звёздами.</td></tr></tbody>';
+  $('#botStatus').innerHTML = `<span class="dot" style="background:${s.bot ? 'var(--mint)' : 'var(--danger)'}"></span>${s.bot ? 'Бот работает' : 'Бот не запущен'}${s.queue ? `<br>В очереди ${num(s.queue)} сообщ.` : ''}`;
+}
+
+// ── игроки ──
+let usersOffset = 0;
+async function loadUsers(reset) {
+  if (reset) usersOffset = 0;
+  const { users } = await api(`/users?q=${encodeURIComponent($('#userSearch').value)}&offset=${usersOffset}`);
+  const rows = users.map(u => `<tr class="click" data-id="${u.id}">
+      <td class="who"><b>${esc(u.first_name || '—')} ${u.is_premium ? '⭐' : ''}</b><small>${u.username ? '@' + esc(u.username) : 'id ' + u.id}</small></td>
+      <td class="num">${num(u.balance)}</td><td class="num">${num(u.total)}</td><td class="num">${num(u.refs)}</td>
+      <td class="num">${u.stars_spent ? num(u.stars_spent) + ' ⭐' : '—'}</td>
+      <td>${u.banned ? '<span class="tag bad">Бан</span>' : when(u.last_seen)}</td></tr>`).join('');
+  const head = '<thead><tr><th>Игрок</th><th class="num">Баланс</th><th class="num">Заработано</th><th class="num">Друзей</th><th class="num">Потратил</th><th>Был в игре</th></tr></thead>';
+  if (reset) $('#usersTbl').innerHTML = head + '<tbody>' + (rows || '<tr><td colspan="6" class="empty">Никого не нашлось. Проверь ID или ник.</td></tr>') + '</tbody>';
+  else $('#usersTbl tbody').insertAdjacentHTML('beforeend', rows);
+  $('#usersMore').style.display = users.length === 50 ? '' : 'none';
+  usersOffset += users.length;
+}
+$('#userSearchBtn').onclick = () => loadUsers(true).catch(e => toast(e.message, true));
+$('#userSearch').onkeydown = e => e.key === 'Enter' && $('#userSearchBtn').click();
+$('#usersMore').onclick = () => loadUsers(false).catch(e => toast(e.message, true));
+$('#usersTbl').onclick = e => { const tr = e.target.closest('tr[data-id]'); if (tr) openUser(tr.dataset.id); };
+
+async function openUser(id) {
+  const d = await api('/user?id=' + id).catch(e => toast(e.message, true)); if (!d) return;
+  const u = d.user;
+  $('#drawerBody').innerHTML = `
+    <div class="row" style="justify-content:space-between"><h2 style="margin:0">${esc(u.first_name || 'Игрок')}</h2><button class="btn small" data-close>Закрыть</button></div>
+    <div style="color:var(--mute);font-size:13px">${u.username ? '@' + esc(u.username) + ' · ' : ''}id ${u.id}</div>
+    <dl class="kv">
+      <dt>Баланс</dt><dd>${num(u.balance)}</dd>
+      <dt>Заработано всего</dt><dd>${num(u.total_earned)}</dd>
+      <dt>Доход в час</dt><dd>${num(u.passive_per_hour)}</dd>
+      <dt>Монет за тап</dt><dd>${u.tap_power}</dd>
+      <dt>Друзей</dt><dd>${num(d.refs)}</dd>
+      <dt>Потратил звёзд</dt><dd>${num(u.stars_spent)}</dd>
+      <dt>VIP до</dt><dd>${u.vip_until > Date.now() ? when(u.vip_until) : '—'}</dd>
+      <dt>В игре с</dt><dd>${when(u.created_at)}</dd>
+      <dt>Последний вход</dt><dd>${when(u.last_seen)}</dd>
+      <dt>Бот</dt><dd>${u.bot_blocked ? 'заблокировал бота' : 'получает сообщения'}</dd>
+    </dl>
+    <label class="f"><span>Изменить баланс</span><input class="in" id="delta" type="number" placeholder="10000 или -5000"></label>
+    <div class="row"><button class="btn gold" data-act="delta">Применить</button>
+      <button class="btn ${u.banned ? '' : 'danger'}" data-act="ban">${u.banned ? 'Разбанить' : 'Забанить'}</button></div>
+    <h2 style="margin-top:24px">Покупки</h2>
+    ${d.payments.length ? d.payments.map(p => `<div class="row" style="justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)">
+      <span>${esc(p.product)}<br><small style="color:var(--mute)">${when(p.created_at)}</small></span>
+      <span>${p.stars} ⭐ ${p.status === 'refunded' ? '<span class="tag bad">возврат</span>' : ''}</span></div>`).join('') : '<div style="color:var(--mute)">Покупок нет</div>'}`;
+  $('#drawer').classList.add('on');
+  $('#drawerBody').onclick = async e => {
+    if (e.target.closest('[data-close]')) return $('#drawer').classList.remove('on');
+    const act = e.target.closest('[data-act]')?.dataset.act; if (!act) return;
+    try {
+      if (act === 'delta') { const v = Number($('#delta').value); if (!v) return toast('Введи число', true); await api('/user', { id: u.id, balance_delta: v }); toast('Баланс изменён'); }
+      if (act === 'ban') { if (!u.banned && !confirm('Заблокировать игрока?')) return; await api('/user', { id: u.id, banned: !u.banned }); toast(u.banned ? 'Игрок разбанен' : 'Игрок забанен'); }
+      openUser(u.id); loadUsers(true);
+    } catch (err) { toast(err.message, true); }
+  };
+}
+$('#drawer .shade').onclick = () => $('#drawer').classList.remove('on');
+document.addEventListener('keydown', e => e.key === 'Escape' && $('#drawer').classList.remove('on'));
+
+// ── задания ──
+const typeName = { channel: 'Канал', link: 'Ссылка', refs: 'Друзья' };
+let tasksCache = [];
+async function loadTasks() {
+  tasksCache = (await api('/tasks')).tasks;
+  $('#tasksTbl').innerHTML = '<thead><tr><th>Задание</th><th>Тип</th><th class="num">Награда</th><th class="num">Выполнили</th><th></th></tr></thead><tbody>' +
+    (tasksCache.map(t => `<tr class="click" data-id="${t.id}">
+      <td>${esc(t.icon)} ${esc(t.title)} ${t.active ? '' : '<span class="tag">скрыто</span>'}</td>
+      <td><span class="tag">${typeName[t.type]}</span></td><td class="num">${num(t.reward)}</td><td class="num">${num(t.completed)}</td>
+      <td class="num"><button class="btn small danger" data-del="${t.id}">Удалить</button></td></tr>`).join('')
+    || '<tr><td colspan="5" class="empty">Заданий нет. Создай первое справа.</td></tr>') + '</tbody>';
+}
+function syncTaskFields() {
+  const type = $('#taskForm').type.value;
+  document.querySelectorAll('#taskForm [data-for]').forEach(l => l.style.display = l.dataset.for.split(' ').includes(type) ? '' : 'none');
+}
+$('#taskForm').type.onchange = syncTaskFields; syncTaskFields();
+function resetTaskForm() { $('#taskForm').reset(); $('#taskForm').id.value = ''; $('#taskFormTitle').textContent = 'Новое задание'; syncTaskFields(); }
+$('#taskReset').onclick = resetTaskForm;
+$('#tasksTbl').onclick = async e => {
+  const del = e.target.closest('[data-del]');
+  if (del) {
+    e.stopPropagation();
+    if (!confirm('Удалить задание? Прогресс игроков по нему тоже удалится.')) return;
+    try { await api('/tasks/delete', { id: +del.dataset.del }); toast('Задание удалено'); loadTasks(); } catch (err) { toast(err.message, true); }
+    return;
+  }
+  const tr = e.target.closest('tr[data-id]'); if (!tr) return;
+  const t = tasksCache.find(x => x.id == tr.dataset.id), f = $('#taskForm');
+  for (const k of ['id', 'icon', 'title', 'type', 'reward', 'url', 'chat_id', 'need', 'sort']) f[k].value = t[k] ?? '';
+  f.active.value = String(t.active);
+  $('#taskFormTitle').textContent = 'Редактирование'; syncTaskFields();
+};
+$('#taskForm').onsubmit = async e => {
+  e.preventDefault();
+  const f = e.target, body = Object.fromEntries(new FormData(f));
+  body.active = body.active === '1';
+  try { await api('/tasks/save', body); toast('Задание сохранено'); resetTaskForm(); loadTasks(); } catch (err) { toast(err.message, true); }
+};
+
+// ── платежи ──
+let payOffset = 0;
+async function loadPayments(reset) {
+  if (reset) payOffset = 0;
+  const { payments } = await api('/payments?offset=' + payOffset);
+  const rows = payments.map(p => `<tr>
+    <td>${when(p.created_at)}</td>
+    <td class="who"><b>${esc(p.first_name || '—')}</b><small>${p.username ? '@' + esc(p.username) : 'id ' + p.user_id}</small></td>
+    <td>${esc(p.title)}</td><td class="num">${num(p.stars)} ⭐</td>
+    <td>${p.status === 'refunded' ? '<span class="tag bad">Возвращён</span>' : '<span class="tag ok">Оплачен</span>'}</td>
+    <td class="num">${p.status === 'paid' ? `<button class="btn small" data-refund="${p.id}">Вернуть звёзды</button>` : ''}</td></tr>`).join('');
+  const head = '<thead><tr><th>Когда</th><th>Игрок</th><th>Товар</th><th class="num">Сумма</th><th>Статус</th><th></th></tr></thead>';
+  if (reset) $('#payTbl').innerHTML = head + '<tbody>' + (rows || '<tr><td colspan="6" class="empty">Платежей пока нет.</td></tr>') + '</tbody>';
+  else $('#payTbl tbody').insertAdjacentHTML('beforeend', rows);
+  $('#payMore').style.display = payments.length === 50 ? '' : 'none';
+  payOffset += payments.length;
+}
+$('#payMore').onclick = () => loadPayments(false).catch(e => toast(e.message, true));
+$('#payTbl').onclick = async e => {
+  const b = e.target.closest('[data-refund]'); if (!b) return;
+  if (!confirm('Вернуть звёзды игроку? Покупка будет отменена.')) return;
+  try { b.disabled = true; await api('/refund', { id: +b.dataset.refund }); toast('Звёзды возвращены'); loadPayments(true); }
+  catch (err) { b.disabled = false; toast(err.message, true); }
+};
+
+// ── рассылки ──
+const bcStatus = { queued: ['В очереди', 'warn'], running: ['Идёт', 'warn'], done: ['Готово', 'ok'], cancelled: ['Остановлена', 'bad'] };
+let bcTimer;
+async function loadBroadcasts() {
+  const { broadcasts } = await api('/broadcasts');
+  $('#bcTbl').innerHTML = '<thead><tr><th>Сообщение</th><th>Прогресс</th><th></th></tr></thead><tbody>' +
+    (broadcasts.map(b => {
+      const pct = b.total ? Math.round((b.sent + b.failed) / b.total * 100) : 0;
+      const [label, cls] = bcStatus[b.status];
+      return `<tr><td style="max-width:220px"><div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(b.text)}</div><small style="color:var(--mute)">${when(b.created_at)}</small></td>
+        <td><span class="tag ${cls}">${label}</span> <small style="color:var(--soft)">${num(b.sent)} из ${num(b.total)}${b.failed ? `, ошибок ${num(b.failed)}` : ''}</small>
+          <div class="bar"><i style="width:${pct}%"></i></div></td>
+        <td class="num">${['queued', 'running'].includes(b.status) ? `<button class="btn small danger" data-cancel="${b.id}">Остановить</button>` : ''}</td></tr>`;
+    }).join('') || '<tr><td colspan="3" class="empty">Рассылок ещё не было.</td></tr>') + '</tbody>';
+  clearTimeout(bcTimer);
+  if (broadcasts.some(b => ['queued', 'running'].includes(b.status)) && $('#v-broadcast').classList.contains('on')) bcTimer = setTimeout(() => loadBroadcasts().catch(() => {}), 3000);
+}
+function renderPreview() {
+  const f = $('#bcForm');
+  const safe = esc(f.text.value || 'Текст сообщения').replace(/&lt;(\/?)(b|i|u|s)&gt;/g, '<$1$2>');
+  $('#bcPreview').innerHTML = safe + (f.button_text.value ? `<span class="pbtn">${esc(f.button_text.value)}</span>` : '');
+}
+$('#bcForm').oninput = renderPreview; renderPreview();
+$('#bcTest').onclick = async () => {
+  try { await api('/broadcast/test', Object.fromEntries(new FormData($('#bcForm')))); toast('Тест отправлен тебе в Telegram'); } catch (e) { toast(e.message, true); }
+};
+$('#bcForm').onsubmit = async e => {
+  e.preventDefault();
+  if (!confirm('Отправить сообщение всем игрокам?')) return;
+  try { await api('/broadcast', Object.fromEntries(new FormData(e.target))); toast('Рассылка запущена'); e.target.reset(); renderPreview(); loadBroadcasts(); }
+  catch (err) { toast(err.message, true); }
+};
+$('#bcTbl').onclick = async e => {
+  const b = e.target.closest('[data-cancel]'); if (!b) return;
+  try { await api('/broadcast/cancel', { id: +b.dataset.cancel }); toast('Рассылка остановлена'); loadBroadcasts(); } catch (err) { toast(err.message, true); }
+};
+
+if (token) enter();
+</script>
+</body>
+</html>

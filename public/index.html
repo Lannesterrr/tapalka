@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0b1026">
+<title>Gold Rush</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=Unbounded:wght@600;800&display=swap" rel="stylesheet">
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<style>
+:root{
+  --ink:#0b1026;        /* ночное небо над шахтой */
+  --deep:#121a3a;       /* поверхности */
+  --raise:#1b2552;      /* приподнятые элементы */
+  --line:rgba(170,179,214,.12);
+  --text:#eef0fb;
+  --soft:#aab3d6;
+  --mute:#6f7aa6;
+  --gold:#f2c14e;       /* монеты, главное действие */
+  --gold-deep:#b07a12;
+  --mint:#3ee6b0;       /* энергия */
+  --ember:#ff8a5c;      /* турбо */
+  --violet:#a68bff;     /* VIP и звёзды */
+  --danger:#ff5d73;
+  --safe-b:env(safe-area-inset-bottom);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:var(--ink);color:var(--text);
+  font:15px/1.45 Onest,system-ui,-apple-system,sans-serif;-webkit-user-select:none;user-select:none;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px;border-radius:10px}
+.num{font-family:Unbounded,Onest,sans-serif;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+
+#app{position:relative;display:flex;flex-direction:column;height:100%;max-width:520px;margin:0 auto}
+/* свечение за монетой — единственный декоративный эффект, реагирует на тапы */
+#glow{position:absolute;left:50%;top:42%;width:560px;height:560px;transform:translate(-50%,-50%);pointer-events:none;
+  background:radial-gradient(closest-side,rgba(242,193,78,.22),rgba(242,193,78,.06) 55%,transparent);transition:opacity .4s;opacity:.7}
+body.page-off #glow{opacity:0}
+
+/* верхняя панель */
+.top{position:relative;z-index:2;display:flex;align-items:center;gap:10px;padding:12px 16px 0}
+.rankchip{display:flex;align-items:center;gap:10px;text-align:left;background:var(--deep);border:1px solid var(--line);border-radius:999px;padding:5px 14px 5px 5px;min-width:0;flex:1;max-width:300px}
+.rankchip .ava{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font:800 14px Unbounded;color:#1b1203;flex:none}
+.rankchip .meta{min-width:0;flex:1}
+.rankchip .meta b{display:block;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rankchip .meta small{display:block;font-size:11px;color:var(--soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rankchip .prog{height:3px;border-radius:2px;background:rgba(255,255,255,.08);margin-top:3px;overflow:hidden}
+.rankchip .prog i{display:block;height:100%;width:0;background:var(--gold)}
+.iconbtn{width:42px;height:42px;border-radius:50%;background:var(--deep);border:1px solid var(--line);display:grid;place-items:center;font-size:18px;flex:none}
+.spacer{flex:1}
+
+main{position:relative;z-index:1;flex:1;overflow:hidden}
+.page{position:absolute;inset:0;overflow-y:auto;padding:8px 16px calc(110px + var(--safe-b));display:none;-webkit-overflow-scrolling:touch}
+.page.on{display:block}
+
+/* экран шахты */
+#p-tap{display:none;flex-direction:column;align-items:center;overflow:hidden;padding-bottom:calc(96px + var(--safe-b))}
+#p-tap.on{display:flex}
+.balance{margin-top:14px;display:flex;align-items:center;gap:10px}
+.balance .mini{width:30px;height:30px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff3c4,var(--gold) 45%,var(--gold-deep));box-shadow:0 0 18px rgba(242,193,78,.5)}
+.balance .num{font-size:clamp(30px,10vw,42px);font-weight:800}
+.rates{display:flex;gap:18px;margin-top:6px;color:var(--soft);font-size:13px}
+.rates b{color:var(--text);font-weight:600}
+.effects{display:flex;gap:8px;margin-top:10px;min-height:26px}
+.fx{font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;display:flex;gap:6px;align-items:center}
+.fx.boost{background:rgba(255,138,92,.15);color:var(--ember)}
+.fx.vip{background:rgba(166,139,255,.15);color:var(--violet)}
+#coinWrap{position:relative;flex:1;width:100%;min-height:220px;touch-action:none;cursor:pointer}
+#coinWrap canvas{position:absolute;inset:0;width:100%!important;height:100%!important}
+#coinFallback{position:absolute;left:50%;top:50%;width:min(70vw,280px);aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;
+  background:radial-gradient(circle at 35% 30%,#fff3c4,var(--skin,var(--gold)) 42%,#5c3e05);box-shadow:inset 0 -12px 0 rgba(0,0,0,.18),0 20px 60px rgba(0,0,0,.45);
+  display:grid;place-items:center;font:800 110px Unbounded;color:rgba(0,0,0,.18);transition:transform .08s}
+#coinFallback.press{transform:translate(-50%,-50%) scale(.94)}
+.energy{width:100%;margin-top:4px}
+.energy .row{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;color:var(--soft)}
+.energy .row .num{color:var(--text);font-size:15px;font-weight:600}
+.ebar{height:12px;border-radius:7px;background:var(--deep);border:1px solid var(--line);margin-top:7px;overflow:hidden}
+.ebar i{display:block;height:100%;width:100%;border-radius:7px;background:linear-gradient(90deg,#1fb98b,var(--mint));box-shadow:0 0 14px rgba(62,230,176,.45);transition:width .15s linear}
+.ebar.low i{background:linear-gradient(90deg,#c43d52,var(--danger));box-shadow:none}
+
+/* всплывающие цифры и искры */
+.pop{position:fixed;z-index:9;pointer-events:none;font:800 30px Unbounded;color:var(--gold);text-shadow:0 2px 12px rgba(0,0,0,.6);animation:pop .85s cubic-bezier(.2,.7,.3,1) forwards}
+.pop.boost{color:var(--ember)}
+@keyframes pop{0%{transform:translate(-50%,-50%) scale(.6);opacity:0}15%{transform:translate(-50%,-70%) scale(1.1);opacity:1}100%{transform:translate(-50%,-260%) scale(.9);opacity:0}}
+.spark{position:fixed;z-index:8;width:7px;height:7px;border-radius:50%;background:var(--gold);pointer-events:none;animation:spark .6s ease-out forwards}
+@keyframes spark{to{transform:translate(var(--dx),var(--dy)) scale(.2);opacity:0}}
+
+/* заголовки разделов */
+.ph{display:flex;align-items:flex-end;justify-content:space-between;margin:12px 2px 14px}
+.ph h1{font:800 24px/1.15 Unbounded,sans-serif}
+.ph p{color:var(--soft);font-size:13px;margin-top:4px}
+.sub{font-size:13px;font-weight:600;color:var(--soft);margin:22px 4px 10px}
+
+/* сегменты */
+.seg{display:flex;background:var(--deep);border:1px solid var(--line);border-radius:14px;padding:4px;margin-bottom:14px}
+.seg button{flex:1;padding:9px;border-radius:10px;font-weight:600;font-size:14px;color:var(--soft)}
+.seg button.on{background:var(--raise);color:var(--text)}
+
+/* сгруппированные списки */
+.group{background:var(--deep);border:1px solid var(--line);border-radius:20px;overflow:hidden}
+.li{display:flex;align-items:center;gap:13px;padding:13px 14px;position:relative}
+.li + .li::before{content:'';position:absolute;left:66px;right:0;top:0;height:1px;background:var(--line)}
+.li .ic{width:42px;height:42px;border-radius:13px;background:var(--raise);display:grid;place-items:center;font-size:22px;flex:none}
+.li .tx{flex:1;min-width:0}
+.li .tx b{display:block;font-weight:600;font-size:15px}
+.li .tx small{display:block;color:var(--soft);font-size:12.5px;margin-top:1px}
+.li .tx small em{font-style:normal;color:var(--mint)}
+.li.locked .ic,.li.locked .tx b{opacity:.45}
+.price{flex:none;min-width:92px;padding:9px 12px;border-radius:12px;background:var(--gold);color:#241a02;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;gap:5px}
+.price:disabled{background:var(--raise);color:var(--mute)}
+.price.stars{background:var(--violet);color:#160a3a}
+.price.ghost{background:var(--raise);color:var(--text)}
+.price.done{background:rgba(62,230,176,.15);color:var(--mint)}
+.lvl{font-size:11px;color:var(--mute);font-weight:600}
+
+/* карточки скинов */
+.skins{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:10px}
+.skin{background:var(--deep);border:1px solid var(--line);border-radius:18px;padding:14px 8px 10px;text-align:center}
+.skin.on{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold) inset}
+.skin .disc{width:54px;height:54px;margin:0 auto 8px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,var(--c) 45%,#000 140%);box-shadow:0 6px 18px rgba(0,0,0,.4)}
+.skin b{display:block;font-size:13px;font-weight:600}
+.skin small{display:block;font-size:11.5px;color:var(--soft);margin-top:2px;min-height:16px}
+
+/* ежедневная награда */
+.daily{background:var(--deep);border:1px solid var(--line);border-radius:20px;padding:16px}
+.days{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin:12px 0 14px}
+.days div{border-radius:10px;background:var(--raise);padding:7px 0 6px;text-align:center;font-size:10px;color:var(--mute);line-height:1.3}
+.days div b{display:block;font:600 11px Unbounded;color:var(--soft)}
+.days div.got{background:rgba(242,193,78,.16)}
+.days div.got b{color:var(--gold)}
+.days div.today{outline:1.5px solid var(--gold)}
+.wide{width:100%;padding:13px;border-radius:14px;font-weight:700;font-size:15px;background:var(--gold);color:#241a02}
+.wide:disabled{background:var(--raise);color:var(--mute)}
+.wide.ghost{background:var(--raise);color:var(--text)}
+
+/* друзья */
+.invite{background:linear-gradient(160deg,var(--raise),var(--deep));border:1px solid var(--line);border-radius:22px;padding:18px;margin-bottom:6px}
+.invite .bon{display:flex;gap:10px;margin:12px 0 16px}
+.invite .bon div{flex:1;background:rgba(0,0,0,.18);border-radius:14px;padding:10px 12px;font-size:12px;color:var(--soft)}
+.invite .bon b{display:block;font:600 16px Unbounded;color:var(--gold);margin-bottom:2px}
+.twobtn{display:flex;gap:8px}
+.twobtn .wide:last-child{flex:0 0 52px;padding:0}
+.empty{color:var(--soft);text-align:center;padding:26px 16px;font-size:14px}
+
+/* нижняя навигация */
+nav.dock{position:absolute;left:12px;right:12px;bottom:calc(10px + var(--safe-b));z-index:5;display:flex;gap:2px;padding:6px;
+  background:rgba(18,26,58,.86);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border:1px solid var(--line);border-radius:24px}
+nav.dock button{flex:1;padding:7px 0 6px;border-radius:18px;color:var(--mute);font-size:11px;font-weight:600;position:relative}
+nav.dock button span{display:block;font-size:21px;line-height:1.2;filter:grayscale(1) opacity(.6);transition:filter .2s}
+nav.dock button.on{background:var(--raise);color:var(--text)}
+nav.dock button.on span{filter:none}
+nav.dock button .badge{position:absolute;top:4px;right:calc(50% - 20px);width:8px;height:8px;border-radius:50%;background:var(--danger);box-shadow:0 0 0 2px var(--deep)}
+
+/* шторки */
+#sheet{position:fixed;inset:0;z-index:20;display:none}
+#sheet.on{display:block}
+#sheet .shade{position:absolute;inset:0;background:rgba(4,7,20,.62);animation:fade .2s}
+#sheet .body{position:absolute;left:0;right:0;bottom:0;max-width:520px;margin:0 auto;max-height:86%;overflow-y:auto;background:var(--deep);
+  border-radius:26px 26px 0 0;border-top:1px solid var(--line);padding:10px 18px calc(22px + var(--safe-b));animation:up .28s cubic-bezier(.2,.8,.2,1)}
+#sheet .grab{width:40px;height:5px;border-radius:3px;background:var(--raise);margin:0 auto 14px}
+#sheet h2{font:800 21px/1.2 Unbounded;margin-bottom:6px}
+#sheet p.lead{color:var(--soft);font-size:14px;margin-bottom:16px}
+.hero{text-align:center;padding:10px 0 18px}
+.hero .big{font:800 40px Unbounded;color:var(--gold);margin:6px 0}
+@keyframes up{from{transform:translateY(100%)}}
+@keyframes fade{from{opacity:0}}
+
+.toprow{display:flex;align-items:center;gap:12px;padding:10px 4px}
+.toprow .pl{width:28px;text-align:center;font:600 13px Unbounded;color:var(--soft)}
+.toprow .pl.m1{color:#f2c14e}.toprow .pl.m2{color:#d9dee6}.toprow .pl.m3{color:#cd8a52}
+.toprow .dsc{width:28px;height:28px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,var(--c) 45%,#000 140%);flex:none}
+.toprow .nm{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500}
+.toprow .sc{font:600 13px Unbounded;color:var(--soft)}
+.toprow.me{background:var(--raise);border-radius:12px}
+.toggle{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 0;border-bottom:1px solid var(--line)}
+.toggle small{display:block;color:var(--soft);font-size:12.5px}
+.sw{width:50px;height:30px;border-radius:15px;background:var(--raise);position:relative;flex:none;transition:background .2s}
+.sw::after{content:'';position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:transform .2s}
+.sw.on{background:var(--mint)}.sw.on::after{transform:translateX(20px)}
+
+#toast{position:fixed;left:50%;top:calc(14px + env(safe-area-inset-top));z-index:30;transform:translate(-50%,-140%);visibility:hidden;background:var(--raise);border:1px solid var(--line);
+  padding:11px 18px;border-radius:14px;font-size:14px;font-weight:500;max-width:90%;text-align:center;transition:transform .25s cubic-bezier(.2,.8,.2,1);pointer-events:none;box-shadow:0 10px 30px rgba(0,0,0,.4)}
+#toast.on{transform:translate(-50%,0);visibility:visible}
+#loader{position:fixed;inset:0;z-index:40;background:var(--ink);display:grid;place-items:center;transition:opacity .4s}
+#loader .mini{width:56px;height:56px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff3c4,var(--gold) 45%,var(--gold-deep));animation:flip 1.1s ease-in-out infinite}
+#loader p{margin-top:16px;color:var(--soft);font-size:14px;text-align:center;max-width:260px}
+@keyframes flip{50%{transform:scaleX(.1)}}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div id="loader"><div style="text-align:center"><div class="mini" style="margin:0 auto"></div><p id="loaderText">Спускаемся в шахту…</p></div></div>
+
+<div id="app">
+  <div id="glow"></div>
+
+  <div class="top">
+    <button class="rankchip" id="rankBtn" aria-label="Рейтинг игроков">
+      <div class="ava" id="ava">?</div>
+      <div class="meta"><b id="rankName">Старатель</b><small id="rankNext"></small><div class="prog"><i id="rankProg"></i></div></div>
+    </button>
+    <div class="spacer"></div>
+    <button class="iconbtn" id="settingsBtn" aria-label="Настройки">⚙️</button>
+  </div>
+
+  <main>
+    <section class="page on" id="p-tap">
+      <div class="balance"><div class="mini"></div><div class="num" id="balance">0</div></div>
+      <div class="rates"><span>Тап <b id="rTap">+1</b></span><span>В час <b id="rHour">0</b></span></div>
+      <div class="effects" id="effects"></div>
+      <div id="coinWrap" aria-label="Монета: нажимай, чтобы добывать"></div>
+      <div class="energy">
+        <div class="row"><span>Энергия</span><span><span class="num" id="eNow">0</span> / <span id="eMax">0</span></span></div>
+        <div class="ebar" id="ebar"><i id="eFill"></i></div>
+      </div>
+    </section>
+
+    <section class="page" id="p-mine">
+      <div class="ph"><div><h1>Прокачка</h1><p>Карточки приносят монеты, даже когда ты не в игре</p></div></div>
+      <div class="seg"><button class="on" data-seg="cards">Карточки</button><button data-seg="boosts">Бусты</button></div>
+      <div class="group" id="cards"></div>
+      <div class="group" id="boosts" hidden></div>
+    </section>
+
+    <section class="page" id="p-shop">
+      <div class="ph"><div><h1>Магазин</h1><p>Оплата звёздами Telegram</p></div></div>
+      <div class="group" id="products"></div>
+      <div class="sub">Вид монеты</div>
+      <div class="skins" id="skins"></div>
+    </section>
+
+    <section class="page" id="p-tasks">
+      <div class="ph"><div><h1>Задания</h1><p>Выполняй и забирай награды</p></div></div>
+      <div class="daily">
+        <b>Ежедневная награда</b>
+        <small style="display:block;color:var(--soft);font-size:12.5px">Заходи каждый день — награда растёт. Пропустишь день, и серия начнётся заново.</small>
+        <div class="days" id="days"></div>
+        <button class="wide" id="dailyBtn">Забрать</button>
+      </div>
+      <div class="sub">Задания</div>
+      <div class="group" id="tasks"></div>
+    </section>
+
+    <section class="page" id="p-friends">
+      <div class="ph"><div><h1>Друзья</h1><p>Играйте вместе и получайте бонусы</p></div></div>
+      <div class="invite">
+        <b>Позови друга в шахту</b>
+        <div class="bon">
+          <div><b id="bonus1" class="num">+5K</b>тебе за друга</div>
+          <div><b id="bonus2" class="num">+25K</b>если у друга Premium</div>
+        </div>
+        <div class="twobtn"><button class="wide" id="inviteBtn">Пригласить друга</button><button class="wide ghost" id="copyBtn" aria-label="Скопировать ссылку">📋</button></div>
+      </div>
+      <div class="sub" id="friendsTitle">Твои друзья</div>
+      <div class="group" id="friends"></div>
+    </section>
+  </main>
+
+  <nav class="dock">
+    <button class="on" data-p="tap"><span>⛏️</span>Шахта</button>
+    <button data-p="mine"><span>🃏</span>Прокачка</button>
+    <button data-p="shop"><span>⭐</span>Магазин</button>
+    <button data-p="tasks"><span>✅</span>Задания</button>
+    <button data-p="friends"><span>👥</span>Друзья</button>
+  </nav>
+</div>
+
+<div id="sheet"><div class="shade"></div><div class="body" id="sheetBody"></div></div>
+<div id="toast" role="status"></div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
